@@ -5,7 +5,8 @@ import json
 import string
 import unicodedata
 from datetime import datetime, timedelta
-from typing import Optional, Tuple
+from typing import Optional
+from zoneinfo import ZoneInfo
 
 import requests
 from telethon.sync import TelegramClient
@@ -17,7 +18,6 @@ from cryptography.hazmat.primitives import serialization
 
 # --- Time helpers ---
 def tz_now(tz_name: str) -> datetime:
-    from zoneinfo import ZoneInfo
     return datetime.now(ZoneInfo(tz_name))
 
 
@@ -229,7 +229,7 @@ def build_qweather_jwt() -> str:
 def qweather_emoji(icon_code: str) -> str:
     """
     Coarse-grained emoji mapping for QWeather icon codes.
-    Example icon codes: day sunny 100, night sunny 150. :contentReference[oaicite:2]{index=2}
+    Example icon codes: day sunny 100, night sunny 150.
     """
     try:
         code = int(icon_code)
@@ -242,11 +242,13 @@ def qweather_emoji(icon_code: str) -> str:
     if code == 150:
         return "🌙"
 
-    # Cloudy/overcast (101-104; night variants are usually 151-154)
-    if 101 <= code <= 104 or 151 <= code <= 154:
-        return "☁️"
+    # Partly cloudy / few clouds (day 102-103, night 152-153) — check first so the
+    # broader cloudy range below does not swallow them.
     if code in (102, 103, 152, 153):
         return "🌤️"
+    # Cloudy/overcast (101-104; night variants 151-154)
+    if 101 <= code <= 104 or 151 <= code <= 154:
+        return "☁️"
 
     # Fog/haze/dust (500+)
     if 500 <= code <= 515:
@@ -323,8 +325,8 @@ def fetch_weather_qweather(timeout: float = 6.0) -> tuple[str, int]:
     """
     Returns: (emoji, temp_c_int)
 
-    Endpoint: /v7/weather/now :contentReference[oaicite:3]{index=3}
-    Auth: JWT (Authorization: Bearer ...) or API KEY. :contentReference[oaicite:4]{index=4}
+    Endpoint: /v7/weather/now
+    Auth: JWT (Authorization: Bearer ...) or API key (X-QW-Api-Key).
     """
     host = os.environ["QW_HOST"].strip()          # Dedicated API host (without https://)
     location = os.environ["QW_LOCATION"].strip()  # lon,lat or LocationID

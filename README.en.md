@@ -2,65 +2,67 @@
 
 [中文文档](README.md)
 
-## Overview
-`Telegram Name Clock Weather` updates your Telegram first name with:
-- Base name
-- Current time (by timezone)
-- Current weather from [QWeather](https://dev.qweather.com) or Open-Meteo fallback
+Turn your Telegram first name into a live clock + weather display. Every contact who sees your name in their chat list or contacts gets a glance at your **current local time and weather**.
 
-It runs continuously in Docker.
+```
+Alice 𝟏𝟑:𝟓𝟏 ☀️𝟐𝟎°𝐂
+```
 
-## Features
-- Minute-level name update with configurable schedule offsets
-- QWeather support with dynamic JWT generation (recommended)
-- Free, no-registration Open-Meteo fallback when QWeather auth is not configured
-- Independent Unicode digit/letter style for time and temperature
-- Fallback auth support: static JWT or API key
-- Simple `.env`-driven configuration
-- Prebuilt Docker image on GHCR
+## ⚠️ Read before you run
 
-Example name format:
+- `TG_STRING_SESSION` is **equivalent to a full Telegram login credential**. Anyone who has it can sign into your account, read every chat, and impersonate you. Keep it in `.env`, never commit it, never share it.
+- Every Telegram contact will continuously see your timezone and weather, which **indirectly leaks your approximate location**.
+- Telegram rate-limits profile changes. The default once-per-minute update is usually safe; aggressive settings can trigger `FloodWait` and lock you out for hours or days.
 
-    Alice 𝟏𝟑:𝟓𝟏 ☀️𝟐𝟎°𝐂
+## How it works
 
-## Requirements
-- Docker
-- Telegram `API_ID`, `API_HASH`, and `TG_STRING_SESSION`
-- Weather coordinates, plus optional [QWeather](https://dev.qweather.com) auth and dedicated host
+Every minute boundary, the script:
 
-## Quick Start (GHCR Image via Docker Compose)
-1. Clone to local.
+1. Calls the Telegram API with `TG_STRING_SESSION` to set its own `first_name` to `{BASE_NAME} {time} {emoji}{temp}°C`.
+2. Renders time and temperature using the Unicode style you chose (𝟏𝟑:𝟓𝟏, 𝟐𝟎°𝐂, etc.).
+3. Refreshes weather every 30 min (default):
+   - If QWeather auth is configured → use QWeather.
+   - Otherwise / on failure → fall back to the free, no-registration [Open-Meteo](https://open-meteo.com/).
+
+## You will need
+
+- A machine that runs Docker (local box, VPS, anything).
+- Telegram `API_ID` and `API_HASH` — request them at [my.telegram.org](https://my.telegram.org) → API development tools.
+- A `TG_STRING_SESSION` generated once locally (see [Generate `TG_STRING_SESSION`](#generate-tg_string_session)).
+- Coordinates — QWeather uses `lon,lat`; Open-Meteo takes separate `lat` / `lon`.
+- Optional: a [QWeather](https://dev.qweather.com/) account and dedicated API host.
+
+## Quick start
+
 ```bash
+# 1. Clone
 git clone https://github.com/clavulin/telegram-name-clock-weather.git
 cd telegram-name-clock-weather
-```
-2. Copy env template.
-```bash
+
+# 2. Configure
 cp .env.example .env
-```
-3. Fill required values in `.env`.
-4. Pull and start.
-```bash
+# Fill in TG_API_ID / TG_API_HASH / TG_STRING_SESSION / BASE_NAME (all required)
+# Plus coordinates: QW_LOCATION or OPEN_METEO_LATITUDE + OPEN_METEO_LONGITUDE
+
+# 3. Start (uses prebuilt GHCR image)
 docker compose pull
 docker compose up -d
-```
-5. Check logs.
-```bash
+
+# 4. Tail logs
 docker compose logs -f
 ```
 
-## Build From Source (Optional)
-1. Clone to local.
-```bash
-git clone https://github.com/clavulin/telegram-name-clock-weather.git
-cd telegram-name-clock-weather
+A healthy startup looks like:
+
 ```
-2. Copy env template.
-```bash
-cp .env.example .env
+[INIT] Current Telegram first_name -> Alice
+[WEATHER] Updated -> ☀️𝟐𝟎°𝐂
+[TRY] Setting name -> Alice 𝟏𝟑:𝟓𝟏 ☀️𝟐𝟎°𝐂
+[CONFIRM] Telegram now shows -> Alice 𝟏𝟑:𝟓𝟏 ☀️𝟐𝟎°𝐂
 ```
-3. Fill required values in `.env`.
-4. Build local image and run.
+
+## Build from source (optional)
+
 ```bash
 docker build -t telegram-name-clock-weather:local .
 docker run -d \
@@ -68,91 +70,89 @@ docker run -d \
   --restart unless-stopped \
   --env-file .env \
   telegram-name-clock-weather:local
-```
-5. Check logs.
-```bash
+
 docker logs -f telegram-name-clock-weather
 ```
 
 ## Generate `TG_STRING_SESSION`
+
+**Run this locally**, not on the server — the step needs interactive input (phone + code).
+
 ```bash
-docker run -it --rm python:3.11 bash -c "
-pip install telethon && \
-python - << 'EOF'
+pip install telethon
+```
+
+```python
 from telethon.sync import TelegramClient
 from telethon.sessions import StringSession
 
-api_id = int(input('API_ID: '))
-api_hash = input('API_HASH: ')
+api_id = 123456            # your API_ID
+api_hash = "your_api_hash" # your API_HASH
 
 with TelegramClient(StringSession(), api_id, api_hash) as client:
-    print('TG_STRING_SESSION=' + client.session.save())
-EOF"
+    print("TG_STRING_SESSION=" + client.session.save())
 ```
 
-Steps:
-1.	Run the command above
-2.	Enter your API_ID
-3.	Enter your API_HASH
-4.	Enter your Telegram phone number
-5.	Enter the verification code
+It will prompt for:
 
-You will get:
-```bash
-TG_STRING_SESSION=xxxxxxxxxxxxxxxxxxxxxxxx
-```
-Copy it into your .env file.
+1. Phone number with country code (e.g. `+15555555555`).
+2. Verification code Telegram sends you.
+3. 2FA password, if you have it enabled.
 
-## Environment Variables
-Required app variables used by current code:
+The long string it prints at the end is your `TG_STRING_SESSION`. Copy it into `.env`.
+
+## Configuration
+
+| Variable | Required | Default | Description |
+|---|---|---|---|
+| `TG_API_ID` | ✅ | — | API ID from my.telegram.org |
+| `TG_API_HASH` | ✅ | — | API hash from my.telegram.org |
+| `TG_STRING_SESSION` | ✅ | — | Telethon string session (see above) |
+| `BASE_NAME` | ✅ | — | Fixed prefix before the dynamic part, e.g. `Alice` |
+| `TZ_NAME` | | `Australia/Sydney` | IANA timezone. Use `Asia/Shanghai`, **not** `China/Shanghai` |
+| `TIME_FORMAT` | | `{time}` | Time template; `{time}` is replaced with `HH:MM` |
+| `TIME_STYLE` | | `fancy` | Unicode style for time, see [Style preview](#style-preview) |
+| `TEMP_STYLE` | | `fancy` | Unicode style for temperature |
+| `AHEAD_SECONDS` | | `0` | Switch to next minute this many seconds early (compensate for network latency) |
+| `GUARD_SECONDS` | | `0.15` | Scheduling guard buffer in seconds |
+| `WEATHER_ENABLED` | | `1` | Set `0` to disable weather and show time only |
+| `WEATHER_REFRESH_SECONDS` | | `1800` | Weather refresh interval, hard floor 60s |
+
+### Weather sources
+
+**QWeather** (your own account, more accurate):
 
 | Variable | Required | Description |
 |---|---|---|
-| `TG_API_ID` | Yes | Telegram API ID |
-| `TG_API_HASH` | Yes | Telegram API hash |
-| `TG_STRING_SESSION` | Yes | Telethon string session |
-| `BASE_NAME` | Yes | Base display name |
-| `TZ_NAME` | No | Timezone, default `Australia/Sydney` |
-| `TIME_FORMAT` | No | Time template, default `{time}` |
-| `TIME_STYLE` | No | Time style: `normal`, `bold` (`fancy` alias), `italic`, `bold_italic`, `script`, `bold_script`, `fraktur`, `bold_fraktur`, `double_struck`, `sans`, `sans_italic`, `sans_bold`, `sans_bold_italic`, `monospace`; hyphen/space aliases like `sans-serif-bold` or `sans serif bold` are accepted; styles without digit glyphs keep digits plain |
-| `TEMP_STYLE` | No | Temperature style for digits and `C`; same style set as `TIME_STYLE`, default `fancy` |
-| `AHEAD_SECONDS` | No | Update lead offset |
-| `GUARD_SECONDS` | No | Schedule guard offset |
-| `WEATHER_ENABLED` | No | Weather switch, default `1` |
-| `WEATHER_REFRESH_SECONDS` | No | Weather refresh interval |
-| `QW_HOST` | Yes for QWeather | QWeather dedicated API host |
-| `QW_LOCATION` | Yes for QWeather, or fallback when Open-Meteo coordinates are not set | `lon,lat` or QWeather LocationID; Open-Meteo fallback can reuse it only when it is `lon,lat` |
-| `QW_LANG` | No | Weather language, default `zh` |
-| `QW_UNIT` | No | Weather unit, default `m` |
-| `OPEN_METEO_LATITUDE` | No | Optional fallback latitude for Open-Meteo |
-| `OPEN_METEO_LONGITUDE` | No | Optional fallback longitude for Open-Meteo |
+| `QW_HOST` | ✅ | Dedicated API host from the QWeather console, **without `https://`** |
+| `QW_LOCATION` | ✅ | `lon,lat` (note the order!) or a QWeather LocationID |
+| `QW_LANG` | | Default `zh` |
+| `QW_UNIT` | | Default `m` (metric) |
 
-QWeather auth (choose one path):
+QWeather auth — **pick one**:
 
-Path A (recommended, dynamic JWT):
-- `QW_PROJECT_ID`
-- `QW_KEY_ID`
-- `QW_PRIVATE_KEY` (PEM text or base64 DER)
-- `QW_JWT_TTL_SECONDS` (optional, default `900`)
+| Path | Variables |
+|---|---|
+| A. Dynamic JWT (recommended) | `QW_PROJECT_ID` + `QW_KEY_ID` + `QW_PRIVATE_KEY` (PEM text or base64 DER) + optional `QW_JWT_TTL_SECONDS` (default `900`) |
+| B. Static JWT | `QW_JWT` |
+| C. API key | `QW_API_KEY` |
 
-Path B:
-- `QW_JWT` (static token)
+**Open-Meteo** (free, no signup; used as fallback or on its own):
 
-Path C:
-- `QW_API_KEY`
+| Variable | Description |
+|---|---|
+| `OPEN_METEO_LATITUDE` | Latitude (−90 ~ 90) |
+| `OPEN_METEO_LONGITUDE` | Longitude (−180 ~ 180) |
 
-If none of the QWeather auth variables are configured, the app automatically uses
-[Open-Meteo](https://open-meteo.com/) as a free, no-registration fallback. Provide
-either `OPEN_METEO_LATITUDE` + `OPEN_METEO_LONGITUDE`, or set `QW_LOCATION` to
-`lon,lat`. QWeather LocationID values cannot be converted by the fallback.
+> If `QW_LOCATION` is already `lon,lat`, you can omit these — it's reused automatically. A QWeather LocationID can't be converted to coordinates.
 
 ## Style preview
 
-Full preview of the supported styles using the sample name `Alice 13:51 ☀️20°C`:
+Sample: `Alice 13:51 ☀️20°C`
 
 ```text
 normal            | Alice 13:51 ☀️20°C
-bold              | Alice 𝟏𝟑:𝟓𝟏 ☀️𝟐𝟎°𝐂
+bold              | Alice 𝟏𝟑:𝟓𝟏 ☀️𝟐𝟎°𝐂      ← fancy is an alias of bold
 italic            | Alice 13:51 ☀️20°𝐶
 bold_italic       | Alice 13:51 ☀️20°𝑪
 script            | Alice 13:51 ☀️20°𝒞
@@ -168,13 +168,28 @@ monospace         | Alice 𝟷𝟹:𝟻𝟷 ☀️𝟸𝟶°𝙲
 ```
 
 Notes:
-- `fancy` is an alias of `bold`.
-- Some Unicode styles do not provide digit glyphs, so the time and temperature numbers stay plain while the `C` changes.
+- Some Unicode math styles only provide letters, not digits. Those styles keep digits plain and only restyle the `C`.
+- Hyphen / space variants are accepted: `sans-serif-bold` and `sans serif bold` both map to `sans_bold`.
 
 ## Troubleshooting
-- `expected lon,lat`
-  - QWeather auth is not configured and Open-Meteo fallback needs coordinates. Set `OPEN_METEO_LATITUDE` + `OPEN_METEO_LONGITUDE`, or use `QW_LOCATION=lon,lat`.
-- QWeather `401 Unauthorized`
-  - Verify `QW_HOST`, key/project IDs, private key, and token TTL.
-- Telegram FloodWait
-  - Telegram rate-limited the account. Wait and retry.
+
+**`expected lon,lat`**
+QWeather isn't configured, `OPEN_METEO_LATITUDE/LONGITUDE` are missing, and `QW_LOCATION` is a LocationID. Set `QW_LOCATION=lon,lat` or configure Open-Meteo coordinates separately.
+
+**QWeather `401 Unauthorized`**
+Check `QW_HOST` (must be the dedicated host from your console, not `devapi.qweather.com`), project/key IDs, `QW_PRIVATE_KEY`, and JWT TTL.
+
+**Telegram `FloodWaitError`**
+You hit the profile-update rate limit. Wait out the seconds printed in the log, then restart, and don't dial refresh settings down too aggressively.
+
+**Name gets truncated**
+Telegram caps `first_name` at 64 characters. Long `BASE_NAME` or character-hungry styles can hit that limit — shorten the name or switch to a leaner style.
+
+**Name not updating**
+Check `docker compose logs -f`:
+- No `[TRY]` lines → the scheduler is stuck, look for repeated `[ERR]`.
+- `[TRY]` but no `[CONFIRM]` → Telegram rejected it, usually expired session. Regenerate `TG_STRING_SESSION`.
+
+## License
+
+[MIT](LICENSE)
