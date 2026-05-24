@@ -273,10 +273,10 @@ def open_meteo_emoji(weather_code: int, is_day: Optional[int] = None) -> str:
     Emoji mapping for Open-Meteo WMO weather codes.
     """
     if weather_code == 0:
-        return "☀️" if is_day != 0 else "🌙"
+        return "☀️" if is_day else "🌙"
 
     if weather_code in (1, 2):
-        return "🌤️" if is_day != 0 else "☁️"
+        return "🌤️" if is_day else "☁️"
     if weather_code == 3:
         return "☁️"
 

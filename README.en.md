@@ -32,7 +32,21 @@ Every minute boundary, the script:
 - Coordinates — QWeather uses `lon,lat`; Open-Meteo takes separate `lat` / `lon`.
 - Optional: a [QWeather](https://dev.qweather.com/) account and dedicated API host.
 
-## Quick start
+## Quick start (one-shot script)
+
+The lazy path — fully interactive, asks for whatever it needs:
+
+```bash
+git clone https://github.com/clavulin/telegram-name-clock-weather.git
+cd telegram-name-clock-weather
+./install.sh
+```
+
+What the script does: checks Docker → asks for `API_ID`/`API_HASH` → spins up a throwaway container to generate `TG_STRING_SESSION` interactively (it prompts you for phone + verification code) → asks for display name, timezone, coordinates → defaults to free Open-Meteo (QWeather is opt-in) → writes `.env` → `docker compose up -d` → tails the last few log lines to confirm.
+
+All you need: a Docker host and a pair of Telegram `API_ID`/`API_HASH` from [my.telegram.org](https://my.telegram.org) → API development tools.
+
+## Manual start (full control)
 
 ```bash
 # 1. Clone

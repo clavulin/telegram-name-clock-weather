@@ -32,7 +32,21 @@ Alice 𝟏𝟑:𝟓𝟏 ☀️𝟐𝟎°𝐂
 - 坐标：QWeather 用 `经度,纬度`；Open-Meteo 用单独的 lat / lon
 - 可选：[QWeather](https://dev.qweather.com/) 账号 + 专属 API host
 
-## 快速开始
+## 快速开始（一键脚本）
+
+懒人路径，全程交互问你要什么填什么：
+
+```bash
+git clone https://github.com/clavulin/telegram-name-clock-weather.git
+cd telegram-name-clock-weather
+./install.sh
+```
+
+脚本会：检查 Docker → 让你输入 API_ID/HASH → 在临时容器里交互登录生成 `TG_STRING_SESSION`（直接问你手机号和验证码）→ 让你填昵称/时区/坐标 → 默认走免费的 Open-Meteo（也可选 QWeather）→ 写 `.env` → `docker compose up -d` → 贴最后几十行日志确认。
+
+需要的只是一个能跑 Docker 的机器，和一对 Telegram `API_ID`/`API_HASH`（[my.telegram.org](https://my.telegram.org) → API development tools）。
+
+## 手动开始（想自己控制每一步）
 
 ```bash
 # 1. 克隆
