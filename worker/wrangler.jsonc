@@ -39,6 +39,8 @@
   // Non-secret tuning knobs mirror the original .env. Secrets (TG_*, CONTROL_TOKEN, QW_*) are
   // set via `wrangler secret put` and NOT stored here. See .dev.vars.example.
   "vars": {
+    // The fixed prefix before the live time + weather. Not a secret — change it here.
+    "BASE_NAME": "Alice",
     "TZ_NAME": "Australia/Sydney",
     "TIME_FORMAT": "{time}",
     "TIME_STYLE": "fancy",
