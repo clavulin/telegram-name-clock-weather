@@ -5,7 +5,7 @@
 //   * alarm() can fire at a precise instant, so we can reproduce the original
 //     AHEAD_SECONDS / GUARD_SECONDS / next_fire_time minute-boundary alignment.
 //     A `* * * * *` cron only fires near :00 and cannot do sub-minute targeting.
-  //   * ctx.storage persists last_name + weather cache + alarm state, and a
+//   * ctx.storage persists last_name + weather cache + alarm state, and a
 //     single DO instance serializes everything (no concurrent rename races).
 //
 // IMPORTANT — connection lifetime:
@@ -84,6 +84,7 @@ export class ClockDurableObject extends DurableObject<Env> {
   async alarm(): Promise<void> {
     const cfg: ResolvedConfig = resolveConfig(this.env);
     const state = await this.loadState();
+    let stateDirty = false;
 
     try {
       await this.waitForGuardWindow(cfg);
@@ -97,7 +98,9 @@ export class ClockDurableObject extends DurableObject<Env> {
           console.warn(`[WEATHER_ERR] ${err instanceof Error ? err.message : String(err)} (keeping last: '${state.weatherText}')`);
         }
         state.nextWeatherFetchMs = nowMs + cfg.weatherRefreshSeconds * 1000;
+        stateDirty = true;
         await this.saveState(state);
+        stateDirty = false;
       }
 
       const targetHhmm = computeTargetHhmm(nowMs, cfg.aheadSeconds, cfg.tzName);
@@ -113,17 +116,20 @@ export class ClockDurableObject extends DurableObject<Env> {
             // Dry run: never touch the real account or open a Telegram socket.
             console.log(`[DRY] Would set name -> ${newName}`);
             state.lastSetName = newName;
+            stateDirty = true;
           } else {
             console.log(`[TRY] Setting name -> ${newName}`);
             const client = await this.getClient();
             state.lastSetName = await client.updateProfileName(newName);
             console.log(`[CONFIRM] Telegram now shows -> ${state.lastSetName}`);
+            stateDirty = true;
           }
         }
         state.lastTargetHhmm = targetHhmm;
+        stateDirty = true;
       }
 
-      await this.saveState(state);
+      if (stateDirty) await this.saveState(state);
       await this.scheduleNext(cfg);
     } catch (err) {
       const waitSeconds = floodWaitSeconds(err);

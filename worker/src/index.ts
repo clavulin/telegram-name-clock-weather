@@ -10,6 +10,7 @@ import type { Env } from "./config";
 export { ClockDurableObject, ClockDurableObject as ClockSchedulerV2 };
 
 const SINGLETON_NAME = "clock";
+const TOKEN_ENCODER = new TextEncoder();
 
 function clockNamespace(env: Env): DurableObjectNamespace<ClockDurableObject> {
   const namespace = env.CLOCK_SCHEDULER ?? env.CLOCK;
@@ -19,14 +20,30 @@ function clockNamespace(env: Env): DurableObjectNamespace<ClockDurableObject> {
   return namespace;
 }
 
-function requireControlAccess(request: Request, env: Env): Response | null {
+function digestToken(value: string): Promise<ArrayBuffer> {
+  return crypto.subtle.digest("SHA-256", TOKEN_ENCODER.encode(value));
+}
+
+function constantTimeEqual(left: ArrayBuffer, right: ArrayBuffer): boolean {
+  const a = new Uint8Array(left);
+  const b = new Uint8Array(right);
+  let diff = a.length ^ b.length;
+  const length = Math.max(a.length, b.length);
+  for (let index = 0; index < length; index += 1) {
+    diff |= (a[index] ?? 0) ^ (b[index] ?? 0);
+  }
+  return diff === 0;
+}
+
+async function requireControlAccess(request: Request, env: Env): Promise<Response | null> {
   const expected = env.CONTROL_TOKEN?.trim();
   if (!expected) {
     return Response.json({ error: "CONTROL_TOKEN is required for /start and /status" }, { status: 503 });
   }
 
   const match = /^Bearer\s+(.+)$/i.exec(request.headers.get("authorization") ?? "");
-  if (match?.[1]?.trim() === expected) return null;
+  const provided = match?.[1]?.trim() ?? "";
+  if (provided && constantTimeEqual(await digestToken(provided), await digestToken(expected))) return null;
 
   return Response.json(
     { error: "Unauthorized" },
@@ -45,7 +62,7 @@ export default {
       // Call once after deploy (or from a cron kicker) to ensure the alarm loop
       // is armed. Idempotent.
       case "/start": {
-        const denied = requireControlAccess(request, env);
+        const denied = await requireControlAccess(request, env);
         if (denied) return denied;
         const stub = clockNamespace(env).getByName(SINGLETON_NAME);
         await stub.start();
@@ -54,7 +71,7 @@ export default {
 
       // Health/debug: last set name, last weather, next fire time.
       case "/status": {
-        const denied = requireControlAccess(request, env);
+        const denied = await requireControlAccess(request, env);
         if (denied) return denied;
         const stub = clockNamespace(env).getByName(SINGLETON_NAME);
         return Response.json(await stub.status());

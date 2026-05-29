@@ -5,3 +5,4 @@ node_modules/
 .wrangler/
 dist/
 *.log
+worker-configuration.d.ts

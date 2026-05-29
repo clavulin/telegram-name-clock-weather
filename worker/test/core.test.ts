@@ -105,6 +105,7 @@ describe("unicode styling", () => {
     expect(formatUnicodeStyle("13:51", "double_struck", true)).toBe("𝟙𝟛:𝟝𝟙");
     expect(formatUnicodeStyle("20°C", "double_struck", true)).toBe("𝟚𝟘°ℂ");
     expect(formatUnicodeStyle("20°C", "italic", true)).toBe("20°𝐶");
+    expect(formatUnicodeStyle("aego", "script", true)).toBe("𝒶ego");
   });
 });
 
