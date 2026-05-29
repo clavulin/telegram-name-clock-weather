@@ -1,0 +1,61 @@
+{
+  "$schema": "./node_modules/wrangler/config-schema.json",
+  "name": "telegram-name-clock",
+  "main": "src/index.ts",
+  // GramJS pulls in Node built-ins (Buffer, crypto, events, stream...).
+  // nodejs_compat is required and the compatibility date must be recent enough.
+  "compatibility_date": "2026-05-29",
+  "compatibility_flags": ["nodejs_compat"],
+
+  "observability": {
+    "enabled": true
+  },
+
+  // The Durable Object holds the per-account clock loop + session state.
+  "durable_objects": {
+    "bindings": [
+      {
+        "name": "CLOCK_SCHEDULER",
+        "class_name": "ClockSchedulerV2"
+      }
+    ]
+  },
+
+  "migrations": [
+    {
+      "tag": "v1",
+      "new_sqlite_classes": ["ClockScheduler"]
+    },
+    {
+      "tag": "v1-clock-scheduler-v2",
+      "new_sqlite_classes": ["ClockSchedulerV2"]
+    },
+    {
+      "tag": "v2-delete-clock-scheduler",
+      "deleted_classes": ["ClockScheduler"]
+    }
+  ],
+
+  // Non-secret tuning knobs mirror the original .env. Secrets (TG_*, CONTROL_TOKEN, QW_*) are
+  // set via `wrangler secret put` and NOT stored here. See .dev.vars.example.
+  "vars": {
+    "TZ_NAME": "Australia/Sydney",
+    "TIME_FORMAT": "{time}",
+    "TIME_STYLE": "fancy",
+    "TEMP_STYLE": "fancy",
+    "AHEAD_SECONDS": "0",
+    "GUARD_SECONDS": "0.2",
+    "WEATHER_ENABLED": "1",
+    "WEATHER_REFRESH_SECONDS": "1800",
+    "QW_LANG": "en",
+    "QW_UNIT": "m",
+    "OPEN_METEO_LATITUDE": "",
+    "OPEN_METEO_LONGITUDE": "",
+    "TELEGRAM_DRY_RUN": "0"
+  }
+
+  // NOTE: There is intentionally no [triggers].crons block. Scheduling is driven
+  // by the Durable Object's own alarm() so we can hit the exact minute boundary
+  // (AHEAD_SECONDS / GUARD_SECONDS), which cron's :00-only granularity cannot do.
+  // A single cron `* * * * *` is kept as a fallback "kicker" option — see README.
+}

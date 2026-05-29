@@ -1,0 +1,27 @@
+# Secrets for local `wrangler dev`. Copy to `.dev.vars` (gitignored) and fill in.
+# In production set each of these with: wrangler secret put <NAME>
+
+# --- Telegram (MTProto user session) ---
+# api_id / api_hash from https://my.telegram.org
+TG_API_ID=
+TG_API_HASH=
+# GramJS StringSession. NOTE: this is NOT the same format as the Python/Telethon
+# session string. Regenerate it with `npm run login` (scripts/login.mjs).
+TG_STRING_SESSION=
+
+# Bearer token required for /start and /status.
+CONTROL_TOKEN=
+
+# --- QWeather (optional; leave empty to use the free Open-Meteo fallback) ---
+# Dynamic JWT (recommended): EdDSA / Ed25519 signed at runtime via Web Crypto.
+QW_PROJECT_ID=
+QW_KEY_ID=
+# PEM ("-----BEGIN PRIVATE KEY-----...") or base64 DER of an Ed25519 private key.
+QW_PRIVATE_KEY=
+# Existing tg-name-clock deployments may already use these legacy names instead:
+# QW_JWT_KID=
+# QW_JWT_PRIVATE_KEY=
+QW_JWT_TTL_SECONDS=900
+# Optional alternatives (choose one path; usually left empty):
+QW_JWT=
+QW_API_KEY=

@@ -1,0 +1,7 @@
+node_modules/
+.dev.vars
+.env.cloudflare
+.wrangler-local-secrets/
+.wrangler/
+dist/
+*.log
