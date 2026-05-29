@@ -42,6 +42,10 @@ export async function connectTelegram(env: Env): Promise<TelegramClientHandle> {
   const client = new TelegramClient(new StringSession(session), apiId, apiHash, {
     connectionRetries: 5,
   });
+  // NOTE: GramJS starts keepalive/ping timers once connected, which would keep
+  // the Durable Object pinned in memory (continuous GB-s billing). The DO closes
+  // this client at the end of every alarm tick (see ClockDurableObject), so the
+  // connection only lives for the few seconds it takes to push one rename.
   await client.connect();
   const me = await client.getMe();
   console.log(`[INIT] Current Telegram first_name -> ${me.firstName ?? ""}`);

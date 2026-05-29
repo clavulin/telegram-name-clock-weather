@@ -104,9 +104,15 @@ health string.
 - `src/telegram.ts` dynamically imports GramJS inside `connectTelegram()` so the
   Worker can start, typecheck, and run non-Telegram tests without opening or
   bundling a Telegram connection at module load time.
-- `ClockDurableObject` keeps the GramJS client as a warm in-memory cache only.
-  Persisted state is limited to `lastTargetHhmm`, `lastSetName`, `weatherText`,
-  and `nextWeatherFetchMs`.
+- `ClockDurableObject` opens the GramJS client only for the duration of a single
+  alarm tick and disconnects it in a `finally` block. GramJS keepalive timers
+  would otherwise keep the Durable Object pinned in memory (continuous GB-s
+  billing); dropping the socket lets the DO go idle between minutes and reconnect
+  next tick from the persisted StringSession. Persisted state is limited to
+  `lastTargetHhmm`, `lastSetName`, `weatherText`, and `nextWeatherFetchMs`.
+- Set `TELEGRAM_DRY_RUN=1` to compute and log the name (`[DRY] Would set name`)
+  without opening a Telegram connection or changing the account. Opt-in only;
+  any unset/`0`/`false` value performs the real rename.
 - Weather failure keeps the last cached weather text and does not block clock-only
   name updates.
 - FloodWait-like Telegram errors re-arm the alarm for the reported wait plus one

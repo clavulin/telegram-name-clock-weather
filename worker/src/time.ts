@@ -10,6 +10,9 @@ export function computeTargetHhmm(nowMs: number, aheadSeconds: number, tzName: s
     hour: "2-digit",
     minute: "2-digit",
     hour12: false,
+    // hourCycle h23 forces midnight to render "00:00" (not "24:00"), which some
+    // ICU/locale combinations emit under hour12:false alone.
+    hourCycle: "h23",
   });
   // en-GB 2-digit gives "HH:MM".
   return fmt.format(t);

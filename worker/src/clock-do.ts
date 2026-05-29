@@ -9,11 +9,11 @@
 //     single DO instance serializes everything (no concurrent rename races).
 //
 // IMPORTANT — connection lifetime:
-//   Outbound TCP sockets do NOT hibernate (only inbound WS servers do). When the
-//   DO is evicted from memory, the in-memory GramJS client + its MTProto socket
-//   die. We therefore treat `this.client` as a best-effort warm cache: reuse it
-//   if connected, otherwise reconnect. Because alarm() fires ~every minute, the
-//   DO usually stays warm enough to reuse the connection between ticks.
+//   Outbound TCP sockets do NOT hibernate (only inbound WS servers do), and any
+//   live GramJS timer would keep this DO pinned in memory (continuous GB-s
+//   billing). So we deliberately DROP the connection at the end of every tick
+//   (see releaseClient in the alarm() finally) and reconnect on the next tick
+//   from the persisted StringSession. `this.client` is only a within-tick handle.
 
 import { DurableObject } from "cloudflare:workers";
 import type { Env, ResolvedConfig } from "./config";
@@ -109,10 +109,16 @@ export class ClockDurableObject extends DurableObject<Env> {
 
         const newName = clampName(nameParts.join(" "));
         if (newName !== state.lastSetName) {
-          console.log(`[TRY] Setting name -> ${newName}`);
-          const client = await this.getClient();
-          state.lastSetName = await client.updateProfileName(newName);
-          console.log(`[CONFIRM] Telegram now shows -> ${state.lastSetName}`);
+          if (cfg.dryRun) {
+            // Dry run: never touch the real account or open a Telegram socket.
+            console.log(`[DRY] Would set name -> ${newName}`);
+            state.lastSetName = newName;
+          } else {
+            console.log(`[TRY] Setting name -> ${newName}`);
+            const client = await this.getClient();
+            state.lastSetName = await client.updateProfileName(newName);
+            console.log(`[CONFIRM] Telegram now shows -> ${state.lastSetName}`);
+          }
         }
         state.lastTargetHhmm = targetHhmm;
       }
@@ -129,6 +135,22 @@ export class ClockDurableObject extends DurableObject<Env> {
 
       console.error("[ERR]", err);
       await this.ctx.storage.setAlarm(Date.now() + GENERIC_RETRY_MS);
+    } finally {
+      // Close the MTProto socket after every tick so no GramJS timer keeps the
+      // Durable Object pinned in memory between minutes. The next tick reconnects
+      // from the persisted StringSession (cheap — the auth key is reused).
+      await this.releaseClient();
+    }
+  }
+
+  private async releaseClient(): Promise<void> {
+    const client = this.client;
+    this.client = null;
+    if (!client) return;
+    try {
+      await client.disconnect();
+    } catch (err) {
+      console.warn(`[DISCONNECT_WARN] ${err instanceof Error ? err.message : String(err)}`);
     }
   }
 
@@ -165,6 +187,8 @@ export class ClockDurableObject extends DurableObject<Env> {
 
   private async getClient(): Promise<TelegramClientHandle> {
     if (this.client?.isConnected()) return this.client;
+    // Drop any stale handle before replacing it so we never leak a dead socket.
+    await this.releaseClient();
     this.client = await connectTelegram(this.env);
     return this.client;
   }

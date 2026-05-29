@@ -83,6 +83,13 @@ describe("resolveConfig", () => {
       weatherRefreshSeconds: 60,
     });
   });
+
+  it("treats TELEGRAM_DRY_RUN as opt-in only", () => {
+    expect(resolveConfig(env())).toMatchObject({ dryRun: false });
+    expect(resolveConfig(env({ TELEGRAM_DRY_RUN: "0" }))).toMatchObject({ dryRun: false });
+    expect(resolveConfig(env({ TELEGRAM_DRY_RUN: "1" }))).toMatchObject({ dryRun: true });
+    expect(resolveConfig(env({ TELEGRAM_DRY_RUN: "true" }))).toMatchObject({ dryRun: true });
+  });
 });
 
 describe("unicode styling", () => {

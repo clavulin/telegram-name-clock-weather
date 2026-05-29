@@ -38,6 +38,7 @@ export interface ResolvedConfig {
   guardSeconds: number;
   weatherEnabled: boolean;
   weatherRefreshSeconds: number;
+  dryRun: boolean;
 }
 
 function readEnv(env: Env, name: keyof Env, fallback = ""): string {
@@ -91,5 +92,7 @@ export function resolveConfig(env: Env): ResolvedConfig {
     guardSeconds,
     weatherEnabled: parseBoolean(readEnv(env, "WEATHER_ENABLED", "1") || "1"),
     weatherRefreshSeconds,
+    // Opt-in only: any unset/0/false value means "really update the profile".
+    dryRun: ["1", "true", "True", "yes"].includes(readEnv(env, "TELEGRAM_DRY_RUN", "0")),
   };
 }
