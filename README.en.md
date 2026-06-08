@@ -186,7 +186,7 @@ docker logs -f telegram-name-clock-weather
 
 > ⚠️ **The two deployment paths use incompatible session formats!** Cloudflare Worker uses GramJS, Docker/Python uses Telethon — they can't be reused across paths. Switching paths means regenerating it.
 >
-> Either way, **run this locally**, not on the server — the step needs interactive input (phone + code).
+> Either way, **run this locally**, not on the server — the step needs interactive input (phone + code). Exactly what to type at each of the three prompts is in [What to enter at each prompt](#what-to-enter-at-each-prompt-same-for-both-paths) below.
 
 ### A. For Cloudflare Worker (GramJS)
 
@@ -196,9 +196,34 @@ npm install
 npm run login
 ```
 
-Enter `api_id` / `api_hash` (reused from the environment if present), phone number, verification code, and 2FA password (leave blank if none). The string it prints at the end is your Worker `TG_STRING_SESSION`.
+It asks for `api_id` / `api_hash` (auto-skipped if already in the environment), phone number, login code, and 2FA password — see [What to enter at each prompt](#what-to-enter-at-each-prompt-same-for-both-paths) below. The string printed between `=== TG_STRING_SESSION ===` is your Worker `TG_STRING_SESSION`.
 
 ### B. For Docker / Python (Telethon)
+
+Easiest: run a throwaway container from the project image — you only need Docker, **no Python / telethon install**. Replace the two values with your own and paste the whole block:
+
+```bash
+docker run --rm -it \
+  -e TG_API_ID=your_API_ID \
+  -e TG_API_HASH=your_API_HASH \
+  --entrypoint python \
+  ghcr.io/clavulin/telegram-name-clock-weather:latest -c '
+import os
+from telethon.sync import TelegramClient
+from telethon.sessions import StringSession
+with TelegramClient(StringSession(), int(os.environ["TG_API_ID"]), os.environ["TG_API_HASH"]) as c:
+    print("\n\n=== TG_STRING_SESSION ===")
+    print(c.session.save())
+    print("=========================")
+'
+```
+
+Then follow [What to enter at each prompt](#what-to-enter-at-each-prompt-same-for-both-paths) for the phone number, code, and 2FA password. The long string printed between `=== TG_STRING_SESSION ===` is your result — copy it into `TG_STRING_SESSION=` in `.env`.
+
+> `./install.sh` does this step for you automatically; you don't need to run this command by hand.
+
+<details>
+<summary>No Docker? Run it with local Python instead</summary>
 
 ```bash
 pip install telethon
@@ -215,13 +240,29 @@ with TelegramClient(StringSession(), api_id, api_hash) as client:
     print("TG_STRING_SESSION=" + client.session.save())
 ```
 
-It will prompt for:
+The interactive prompts are identical to the ones above.
 
-1. Phone number with country code (e.g. `+15555555555`).
-2. Verification code Telegram sends you.
-3. 2FA password, if you have it enabled.
+</details>
 
-The long string it prints at the end is your `TG_STRING_SESSION`. Copy it into `.env`.
+### What to enter at each prompt (same for both paths)
+
+Whether GramJS or Telethon, the login walks you through these three prompts in order:
+
+1. **Phone number** — must be international E.164 format: a `+`, the country code, then the number, **with no spaces or hyphens, and drop the local leading `0`**. This is the phone of the **Telegram account you're logging in as** (a user account, not a bot).
+
+   | Country/region | Local number | Enter |
+   |---|---|---|
+   | China | 138 1234 5678 | `+8613812345678` |
+   | Hong Kong | 9123 4567 | `+85291234567` |
+   | US | (415) 555-0123 | `+14155550123` |
+
+2. **Login code** — Telegram sends a numeric code to your **other signed-in Telegram apps** (it falls back to SMS only if you have no other active device). Type it in as-is; it's different every login.
+
+3. **2FA password (prompted as `please enter your password`)** — asked **only** if you've enabled Two-Step Verification on the account.
+   - Enabled → enter the **fixed password you set yourself** (not your phone's unlock PIN, and not the login code from the previous step).
+   - Not enabled → **just press Enter to leave it blank**.
+
+   Forgot it? On your phone: **Settings → Privacy and Security → Two-Step Verification** to reset or turn it off; once off, logging in won't ask again.
 
 ## Configuration
 
