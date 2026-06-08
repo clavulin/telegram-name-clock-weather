@@ -42,9 +42,29 @@ cd telegram-name-clock-weather
 ./install.sh
 ```
 
-What the script does: checks Docker → asks for `API_ID`/`API_HASH` → spins up a throwaway container to generate `TG_STRING_SESSION` interactively (it prompts you for phone + verification code) → asks for display name, timezone, coordinates → defaults to free Open-Meteo (QWeather is opt-in) → writes `.env` → `docker compose up -d` → tails the last few log lines to confirm.
+What the script does: checks Docker → asks for `API_ID`/`API_HASH` → spins up a throwaway container to generate `TG_STRING_SESSION` interactively (it prompts you for phone, login code, and 2FA password) → asks for display name, timezone, coordinates → defaults to free Open-Meteo (QWeather is opt-in) → writes `.env` → `docker compose up -d` → tails the last few log lines to confirm.
 
 All you need: a Docker host and a pair of Telegram `API_ID`/`API_HASH` from [my.telegram.org](https://my.telegram.org) → API development tools.
+
+### What to enter at each prompt
+
+Whether it's `./install.sh` here or generating it by hand later, the login walks you through these three prompts in order:
+
+1. **Phone number** — must be international E.164 format: a `+`, the country code, then the number, **with no spaces or hyphens, and drop the local leading `0`**. This is the phone of the **Telegram account you're logging in as** (a user account, not a bot).
+
+   | Country/region | Local number | Enter |
+   |---|---|---|
+   | China | 138 1234 5678 | `+8613812345678` |
+   | Hong Kong | 9123 4567 | `+85291234567` |
+   | US | (415) 555-0123 | `+14155550123` |
+
+2. **Login code** — Telegram sends a numeric code to your **other signed-in Telegram apps** (it falls back to SMS only if you have no other active device). Type it in as-is; it's different every login.
+
+3. **2FA password (prompted as `please enter your password`)** — asked **only** if you've enabled Two-Step Verification on the account.
+   - Enabled → enter the **fixed password you set yourself** (not your phone's unlock PIN, and not the login code from the previous step).
+   - Not enabled → **just press Enter to leave it blank**.
+
+   Forgot it? On your phone: **Settings → Privacy and Security → Two-Step Verification** to reset or turn it off; once off, logging in won't ask again.
 
 ## Manual start (full control)
 
@@ -90,7 +110,7 @@ docker logs -f telegram-name-clock-weather
 
 ## Generate `TG_STRING_SESSION`
 
-**Run this locally**, not on the server — the step needs interactive input (phone + code).
+**Run this locally**, not on the server — the step needs interactive input (phone + code; how to fill each prompt is in [What to enter at each prompt](#what-to-enter-at-each-prompt) above).
 
 Easiest: run a throwaway container from the project image — you only need Docker, **no Python / telethon install**. Replace the two values with your own and paste the whole block:
 
@@ -135,26 +155,6 @@ with TelegramClient(StringSession(), api_id, api_hash) as client:
 The interactive prompts are identical to the ones above.
 
 </details>
-
-### What to enter at each prompt
-
-The login walks you through these three prompts in order:
-
-1. **Phone number** — must be international E.164 format: a `+`, the country code, then the number, **with no spaces or hyphens, and drop the local leading `0`**. This is the phone of the **Telegram account you're logging in as** (a user account, not a bot).
-
-   | Country/region | Local number | Enter |
-   |---|---|---|
-   | China | 138 1234 5678 | `+8613812345678` |
-   | Hong Kong | 9123 4567 | `+85291234567` |
-   | US | (415) 555-0123 | `+14155550123` |
-
-2. **Login code** — Telegram sends a numeric code to your **other signed-in Telegram apps** (it falls back to SMS only if you have no other active device). Type it in as-is; it's different every login.
-
-3. **2FA password (prompted as `please enter your password`)** — asked **only** if you've enabled Two-Step Verification on the account.
-   - Enabled → enter the **fixed password you set yourself** (not your phone's unlock PIN, and not the login code from the previous step).
-   - Not enabled → **just press Enter to leave it blank**.
-
-   Forgot it? On your phone: **Settings → Privacy and Security → Two-Step Verification** to reset or turn it off; once off, logging in won't ask again.
 
 ## Configuration
 
