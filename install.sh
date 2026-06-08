@@ -56,7 +56,7 @@ cat <<EOF
 ${C_BOLD}Telegram Name Clock Weather — 一键安装向导${C_RESET}
 
 会带你走完：
-  1) 检查 Docker
+  1) 检查 / 安装 Docker
   2) 输入 Telegram API_ID / API_HASH
   3) 在容器里交互生成 TG_STRING_SESSION（手机号 + 验证码）
   4) 昵称、时区、坐标
@@ -69,19 +69,77 @@ EOF
 confirm "继续？" "Y" || exit 0
 
 # ---------- 1. Docker ----------
-step "1/6 检查 Docker"
+step "1/6 检查 / 安装 Docker"
+
+# 非 root 且有 sudo 时，后续提权都走 sudo
+SUDO=""
+if [[ "$(id -u)" -ne 0 ]] && command -v sudo >/dev/null 2>&1; then SUDO="sudo"; fi
+
+install_docker() {
+  local os; os="$(uname -s)"
+  if [[ "$os" != "Linux" ]]; then
+    err "自动安装只支持 Linux；$os 请手动装 Docker Desktop：https://docs.docker.com/desktop/"
+    exit 1
+  fi
+  if ! command -v curl >/dev/null 2>&1; then
+    err "自动安装需要 curl，但没找到。先装 curl，或手动装 Docker：https://docs.docker.com/engine/install/"
+    exit 1
+  fi
+  if [[ "$(id -u)" -ne 0 && -z "$SUDO" ]]; then
+    err "装 Docker 需要 root，但没找到 sudo。请用 root 重跑，或手动安装：https://docs.docker.com/engine/install/"
+    exit 1
+  fi
+  info "用 Docker 官方脚本安装（curl -fsSL https://get.docker.com | sh）…"
+  if ! curl -fsSL https://get.docker.com | $SUDO sh; then
+    err "自动安装失败，请手动安装：https://docs.docker.com/engine/install/"
+    exit 1
+  fi
+  if command -v systemctl >/dev/null 2>&1; then
+    $SUDO systemctl enable --now docker >/dev/null 2>&1 || true
+  fi
+  # 把当前用户加进 docker 组（下次登录生效；本次会话先用 sudo 兜底）
+  [[ -n "$SUDO" ]] && $SUDO usermod -aG docker "$(id -un)" >/dev/null 2>&1 || true
+  ok "Docker 安装完成"
+}
+
 if ! command -v docker >/dev/null 2>&1; then
-  err "找不到 docker，先装：https://docs.docker.com/engine/install/"
+  warn "没检测到 Docker。"
+  if confirm "现在自动安装 Docker？" "Y"; then
+    install_docker
+  else
+    err "需要 Docker 才能继续。手动安装：https://docs.docker.com/engine/install/"
+    exit 1
+  fi
+fi
+
+# daemon 常见没自启，尝试拉起来
+if ! docker info >/dev/null 2>&1 && command -v systemctl >/dev/null 2>&1; then
+  if [[ "$(id -u)" -eq 0 ]]; then
+    systemctl start docker >/dev/null 2>&1 || true
+  elif [[ -n "$SUDO" ]]; then
+    $SUDO systemctl start docker >/dev/null 2>&1 || true
+  fi
+fi
+
+# 决定怎么跟 Docker 说话：能直连就直连，否则用 sudo 兜底（应对刚装完还没进 docker 组）
+DOCKER=(docker)
+if docker info >/dev/null 2>&1; then
+  DOCKER=(docker)
+elif [[ -n "$SUDO" ]] && sudo docker info >/dev/null 2>&1; then
+  DOCKER=(sudo docker)
+  warn "当前用户还不能直连 Docker（多半是没加入 docker 组），本次先用 sudo 兜底。"
+  warn "之后重新登录一次（或运行 newgrp docker）就能去掉 sudo。"
+else
+  err "docker info 失败：daemon 没启动，或当前用户不在 docker 组里。"
+  err "排查：先 sudo systemctl start docker，再确认你在 docker 组（newgrp docker 或重新登录）。"
   exit 1
 fi
-if ! docker info >/dev/null 2>&1; then
-  err "docker info 失败。daemon 没启动，或者当前用户不在 docker 组里。"
-  exit 1
-fi
-if docker compose version >/dev/null 2>&1; then
-  COMPOSE=(docker compose)
+
+# compose 跟上面用同样的（是否 sudo）前缀
+if "${DOCKER[@]}" compose version >/dev/null 2>&1; then
+  COMPOSE=("${DOCKER[@]}" compose)
 elif command -v docker-compose >/dev/null 2>&1; then
-  COMPOSE=(docker-compose)
+  if [[ "${DOCKER[0]}" == "sudo" ]]; then COMPOSE=(sudo docker-compose); else COMPOSE=(docker-compose); fi
 else
   err "找不到 docker compose（v2 插件或 v1 都行）。"
   exit 1
@@ -142,7 +200,7 @@ read -r -p "回车继续… " _
 
 IMAGE="ghcr.io/clavulin/telegram-name-clock-weather:latest"
 info "拉取镜像 $IMAGE"
-docker pull "$IMAGE" >/dev/null
+"${DOCKER[@]}" pull "$IMAGE" >/dev/null
 ok "镜像就绪"
 
 WORK_DIR=$(mktemp -d)
@@ -164,7 +222,7 @@ print()
 print("[OK] Session 已生成，返回安装脚本。")
 PYEOF
 
-if ! docker run --rm -it \
+if ! "${DOCKER[@]}" run --rm -it \
     --user root \
     -e TG_API_ID="$TG_API_ID" \
     -e TG_API_HASH="$TG_API_HASH" \
