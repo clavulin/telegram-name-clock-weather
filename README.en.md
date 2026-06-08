@@ -136,7 +136,27 @@ cd telegram-name-clock-weather
 ./install.sh
 ```
 
-What the script does: checks Docker → asks for `API_ID`/`API_HASH` → spins up a throwaway container to generate `TG_STRING_SESSION` interactively (it prompts you for phone + verification code) → asks for display name, timezone, coordinates → defaults to free Open-Meteo (QWeather is opt-in) → writes `.env` → `docker compose up -d` → tails the last few log lines to confirm.
+What the script does: checks Docker → asks for `API_ID`/`API_HASH` → spins up a throwaway container to generate `TG_STRING_SESSION` interactively (it prompts you for phone, login code, and 2FA password) → asks for display name, timezone, coordinates → defaults to free Open-Meteo (QWeather is opt-in) → writes `.env` → `docker compose up -d` → tails the last few log lines to confirm.
+
+### What to enter at each prompt (same for both paths)
+
+Whether it's `./install.sh` here, the Worker's `npm run login`, or generating it by hand later with Docker / Python, the login walks you through these three prompts in order:
+
+1. **Phone number** — must be international E.164 format: a `+`, the country code, then the number, **with no spaces or hyphens, and drop the local leading `0`**. This is the phone of the **Telegram account you're logging in as** (a user account, not a bot).
+
+   | Country/region | Local number | Enter |
+   |---|---|---|
+   | China | 138 1234 5678 | `+8613812345678` |
+   | Hong Kong | 9123 4567 | `+85291234567` |
+   | US | (415) 555-0123 | `+14155550123` |
+
+2. **Login code** — Telegram sends a numeric code to your **other signed-in Telegram apps** (it falls back to SMS only if you have no other active device). Type it in as-is; it's different every login.
+
+3. **2FA password (prompted as `please enter your password`)** — asked **only** if you've enabled Two-Step Verification on the account.
+   - Enabled → enter the **fixed password you set yourself** (not your phone's unlock PIN, and not the login code from the previous step).
+   - Not enabled → **just press Enter to leave it blank**.
+
+   Forgot it? On your phone: **Settings → Privacy and Security → Two-Step Verification** to reset or turn it off; once off, logging in won't ask again.
 
 ### Manual start (full control)
 
@@ -186,7 +206,7 @@ docker logs -f telegram-name-clock-weather
 
 > ⚠️ **The two deployment paths use incompatible session formats!** Cloudflare Worker uses GramJS, Docker/Python uses Telethon — they can't be reused across paths. Switching paths means regenerating it.
 >
-> Either way, **run this locally**, not on the server — the step needs interactive input (phone + code). Exactly what to type at each of the three prompts is in [What to enter at each prompt](#what-to-enter-at-each-prompt-same-for-both-paths) below.
+> Either way, **run this locally**, not on the server — the step needs interactive input (phone + code). Exactly what to type at each of the three prompts is in [What to enter at each prompt](#what-to-enter-at-each-prompt-same-for-both-paths) above.
 
 ### A. For Cloudflare Worker (GramJS)
 
@@ -196,7 +216,7 @@ npm install
 npm run login
 ```
 
-It asks for `api_id` / `api_hash` (auto-skipped if already in the environment), phone number, login code, and 2FA password — see [What to enter at each prompt](#what-to-enter-at-each-prompt-same-for-both-paths) below. The string printed between `=== TG_STRING_SESSION ===` is your Worker `TG_STRING_SESSION`.
+It asks for `api_id` / `api_hash` (auto-skipped if already in the environment), phone number, login code, and 2FA password — see [What to enter at each prompt](#what-to-enter-at-each-prompt-same-for-both-paths) above. The string printed between `=== TG_STRING_SESSION ===` is your Worker `TG_STRING_SESSION`.
 
 ### B. For Docker / Python (Telethon)
 
@@ -243,26 +263,6 @@ with TelegramClient(StringSession(), api_id, api_hash) as client:
 The interactive prompts are identical to the ones above.
 
 </details>
-
-### What to enter at each prompt (same for both paths)
-
-Whether GramJS or Telethon, the login walks you through these three prompts in order:
-
-1. **Phone number** — must be international E.164 format: a `+`, the country code, then the number, **with no spaces or hyphens, and drop the local leading `0`**. This is the phone of the **Telegram account you're logging in as** (a user account, not a bot).
-
-   | Country/region | Local number | Enter |
-   |---|---|---|
-   | China | 138 1234 5678 | `+8613812345678` |
-   | Hong Kong | 9123 4567 | `+85291234567` |
-   | US | (415) 555-0123 | `+14155550123` |
-
-2. **Login code** — Telegram sends a numeric code to your **other signed-in Telegram apps** (it falls back to SMS only if you have no other active device). Type it in as-is; it's different every login.
-
-3. **2FA password (prompted as `please enter your password`)** — asked **only** if you've enabled Two-Step Verification on the account.
-   - Enabled → enter the **fixed password you set yourself** (not your phone's unlock PIN, and not the login code from the previous step).
-   - Not enabled → **just press Enter to leave it blank**.
-
-   Forgot it? On your phone: **Settings → Privacy and Security → Two-Step Verification** to reset or turn it off; once off, logging in won't ask again.
 
 ## Configuration
 

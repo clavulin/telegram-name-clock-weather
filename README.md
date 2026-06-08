@@ -136,7 +136,27 @@ cd telegram-name-clock-weather
 ./install.sh
 ```
 
-脚本会：检查 Docker → 让你输入 API_ID/HASH → 在临时容器里交互登录生成 `TG_STRING_SESSION`（直接问你手机号和验证码）→ 让你填昵称/时区/坐标 → 默认走免费的 Open-Meteo（也可选 QWeather）→ 写 `.env` → `docker compose up -d` → 贴最后几十行日志确认。
+脚本会：检查 Docker → 让你输入 API_ID/HASH → 在临时容器里交互登录生成 `TG_STRING_SESSION`（依次问你手机号、验证码、二次验证密码）→ 让你填昵称/时区/坐标 → 默认走免费的 Open-Meteo（也可选 QWeather）→ 写 `.env` → `docker compose up -d` → 贴最后几十行日志确认。
+
+### 交互提示怎么填（两种方式通用）
+
+不管是这里的 `./install.sh`、Worker 的 `npm run login`，还是后面手动用 Docker / Python 生成，登录时都会依次问这三项：
+
+1. **手机号** —— 必须用国际格式 E.164：`+` 加国家区号，再接号码，**中间不要空格、不要连字符，并去掉本地拨号的前导 `0`**。这是你**要登录的那个 Telegram 账号本人**的手机号（用户账号，不是 bot）。
+
+   | 国家/地区 | 本地号码 | 这里填 |
+   |---|---|---|
+   | 中国大陆 | 138 1234 5678 | `+8613812345678` |
+   | 香港 | 9123 4567 | `+85291234567` |
+   | 美国 | (415) 555-0123 | `+14155550123` |
+
+2. **登录验证码** —— Telegram 把一串数字码发到你**其它已登录的 Telegram App**（没有别的在线设备时才会走短信）。原样填进来即可，每次登录都不一样。
+
+3. **二次验证密码（2FA，提示 `please enter your password`）** —— **只有**你给账号开过「两步验证」时才会问到。
+   - 开过 → 输入你当初**自己设的那个固定密码**（不是手机解锁密码，也不是上一步的验证码）。
+   - 没开过 → **直接回车留空**。
+
+   忘了这个密码：手机 Telegram → **Settings → Privacy and Security → Two-Step Verification** 里可重置或关闭，关掉后重新登录就不会再问。
 
 ### 手动开始（想自己控制每一步）
 
@@ -186,7 +206,7 @@ docker logs -f telegram-name-clock-weather
 
 > ⚠️ **两种部署方式的会话串格式不通用！** Cloudflare Worker 用 GramJS，Docker/Python 用 Telethon，互相不能复用。换部署方式必须重新生成。
 >
-> 不管哪种，都**在本地跑**，不要在服务器上跑——这一步需要交互输入手机号和验证码。三个提示分别填什么，照着下面[交互提示怎么填](#交互提示怎么填两种方式通用)填就行。
+> 不管哪种，都**在本地跑**，不要在服务器上跑——这一步需要交互输入手机号和验证码。三个提示分别填什么，照着上面[交互提示怎么填](#交互提示怎么填两种方式通用)填就行。
 
 ### A. 给 Cloudflare Worker 用（GramJS）
 
@@ -196,7 +216,7 @@ npm install
 npm run login
 ```
 
-会依次问 `api_id` / `api_hash`（环境里有就自动跳过）、手机号、登录验证码、二次验证密码——填法见下方[交互提示怎么填](#交互提示怎么填两种方式通用)。最后打印在 `=== TG_STRING_SESSION ===` 之间的那串就是 Worker 用的 `TG_STRING_SESSION`。
+会依次问 `api_id` / `api_hash`（环境里有就自动跳过）、手机号、登录验证码、二次验证密码——填法见上面[交互提示怎么填](#交互提示怎么填两种方式通用)。最后打印在 `=== TG_STRING_SESSION ===` 之间的那串就是 Worker 用的 `TG_STRING_SESSION`。
 
 ### B. 给 Docker / Python 用（Telethon）
 
@@ -218,7 +238,7 @@ with TelegramClient(StringSession(), int(os.environ["TG_API_ID"]), os.environ["T
 '
 ```
 
-接着按下方[交互提示怎么填](#交互提示怎么填两种方式通用)输入手机号、验证码、二次验证密码。最后打印在 `=== TG_STRING_SESSION ===` 之间的那一长串就是结果，整段复制到 `.env` 的 `TG_STRING_SESSION=`。
+接着按上面[交互提示怎么填](#交互提示怎么填两种方式通用)输入手机号、验证码、二次验证密码。最后打印在 `=== TG_STRING_SESSION ===` 之间的那一长串就是结果，整段复制到 `.env` 的 `TG_STRING_SESSION=`。
 
 > 跑 `./install.sh` 的话这一步是自动的，不用手动敲这条命令。
 
@@ -243,26 +263,6 @@ with TelegramClient(StringSession(), api_id, api_hash) as client:
 交互提示与上面完全一致。
 
 </details>
-
-### 交互提示怎么填（两种方式通用）
-
-不管 GramJS 还是 Telethon，登录时都会依次问这三项：
-
-1. **手机号** —— 必须用国际格式 E.164：`+` 加国家区号，再接号码，**中间不要空格、不要连字符，并去掉本地拨号的前导 `0`**。这是你**要登录的那个 Telegram 账号本人**的手机号（用户账号，不是 bot）。
-
-   | 国家/地区 | 本地号码 | 这里填 |
-   |---|---|---|
-   | 中国大陆 | 138 1234 5678 | `+8613812345678` |
-   | 香港 | 9123 4567 | `+85291234567` |
-   | 美国 | (415) 555-0123 | `+14155550123` |
-
-2. **登录验证码** —— Telegram 把一串数字码发到你**其它已登录的 Telegram App**（没有别的在线设备时才会走短信）。原样填进来即可，每次登录都不一样。
-
-3. **二次验证密码（2FA，提示 `please enter your password`）** —— **只有**你给账号开过「两步验证」时才会问到。
-   - 开过 → 输入你当初**自己设的那个固定密码**（不是手机解锁密码，也不是上一步的验证码）。
-   - 没开过 → **直接回车留空**。
-
-   忘了这个密码：手机 Telegram → **Settings → Privacy and Security → Two-Step Verification** 里可重置或关闭，关掉后重新登录就不会再问。
 
 ## 配置项
 
