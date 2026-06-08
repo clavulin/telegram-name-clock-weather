@@ -164,7 +164,7 @@ with TelegramClient(StringSession(), api_id, api_hash) as client:
 | `TG_API_HASH` | ✅ | — | my.telegram.org 拿的 API Hash |
 | `TG_STRING_SESSION` | ✅ | — | Telethon 会话串（见上方） |
 | `BASE_NAME` | ✅ | — | 动态部分前面的固定昵称，比如 `Alice` |
-| `TZ_NAME` | | `Australia/Sydney` | IANA 时区，**中国是 `Asia/Shanghai`，不是 `China/Shanghai`** |
+| `TZ_NAME` | | `Asia/Shanghai` | IANA 时区（注意写 `Asia/Shanghai`，**不是** `China/Shanghai`） |
 | `TIME_FORMAT` | | `{time}` | 时间模板，`{time}` 替换为 `HH:MM` |
 | `TIME_STYLE` | | `fancy` | 时间字体样式，见[样式预览](#样式预览) |
 | `TEMP_STYLE` | | `fancy` | 温度字体样式，同上 |
