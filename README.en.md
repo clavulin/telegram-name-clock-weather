@@ -275,7 +275,7 @@ These are shared by both paths: with Docker put them in `.env`; with Cloudflare 
 | `TG_STRING_SESSION` | ✅ | — | Session string (GramJS for Worker, Telethon for Docker — see above) |
 | `BASE_NAME` | ✅ | — | Fixed prefix before the dynamic part, e.g. `Alice` |
 | `CONTROL_TOKEN` | Worker only | — | Bearer token protecting `/start` and `/status` (Cloudflare path only) |
-| `TZ_NAME` | | `Australia/Sydney` | IANA timezone. Use `Asia/Shanghai`, **not** `China/Shanghai` |
+| `TZ_NAME` | | `Asia/Shanghai` | IANA timezone (it's `Asia/Shanghai`, **not** `China/Shanghai`) |
 | `TIME_FORMAT` | | `{time}` | Time template; `{time}` is replaced with `HH:MM` |
 | `TIME_STYLE` | | `fancy` | Unicode style for time, see [Style preview](#style-preview) |
 | `TEMP_STYLE` | | `fancy` | Unicode style for temperature |

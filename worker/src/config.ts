@@ -84,7 +84,7 @@ export function resolveConfig(env: Env): ResolvedConfig {
 
   return {
     baseName,
-    tzName: readEnv(env, "TZ_NAME", "Australia/Sydney") || "Australia/Sydney",
+    tzName: readEnv(env, "TZ_NAME", "Asia/Shanghai") || "Asia/Shanghai",
     timeFormat: readEnv(env, "TIME_FORMAT", "{time}") || "{time}",
     timeStyle: normalizeUnicodeStyle(readEnv(env, "TIME_STYLE", "fancy"), "TIME_STYLE"),
     tempStyle: normalizeUnicodeStyle(readEnv(env, "TEMP_STYLE", "fancy"), "TEMP_STYLE"),

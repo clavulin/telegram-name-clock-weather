@@ -441,7 +441,7 @@ def main():
 
     # Name format
     base_name = os.environ.get("BASE_NAME", "").strip()
-    tz_name = os.environ.get("TZ_NAME", "Australia/Sydney").strip()
+    tz_name = os.environ.get("TZ_NAME", "Asia/Shanghai").strip()
     suffix_time_fmt = os.environ.get("TIME_FORMAT", "{time}").strip()  # default "{time}"
     time_style = normalize_unicode_style(os.environ.get("TIME_STYLE", "fancy"), "TIME_STYLE")
     temp_style = normalize_unicode_style(os.environ.get("TEMP_STYLE", "fancy"), "TEMP_STYLE")

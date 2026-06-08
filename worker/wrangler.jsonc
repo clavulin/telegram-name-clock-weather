@@ -41,7 +41,7 @@
   "vars": {
     // The fixed prefix before the live time + weather. Not a secret — change it here.
     "BASE_NAME": "Alice",
-    "TZ_NAME": "Australia/Sydney",
+    "TZ_NAME": "Asia/Shanghai",
     "TIME_FORMAT": "{time}",
     "TIME_STYLE": "fancy",
     "TEMP_STYLE": "fancy",
