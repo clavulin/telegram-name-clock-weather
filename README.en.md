@@ -92,6 +92,31 @@ docker logs -f telegram-name-clock-weather
 
 **Run this locally**, not on the server — the step needs interactive input (phone + code).
 
+Easiest: run a throwaway container from the project image — you only need Docker, **no Python / telethon install**. Replace the two values with your own and paste the whole block:
+
+```bash
+docker run --rm -it \
+  -e TG_API_ID=your_API_ID \
+  -e TG_API_HASH=your_API_HASH \
+  --entrypoint python \
+  ghcr.io/clavulin/telegram-name-clock-weather:latest -c '
+import os
+from telethon.sync import TelegramClient
+from telethon.sessions import StringSession
+with TelegramClient(StringSession(), int(os.environ["TG_API_ID"]), os.environ["TG_API_HASH"]) as c:
+    print("\n\n=== TG_STRING_SESSION ===")
+    print(c.session.save())
+    print("=========================")
+'
+```
+
+The long string printed between `=== TG_STRING_SESSION ===` is your result — copy it into `TG_STRING_SESSION=` in `.env`.
+
+> `./install.sh` does this step for you automatically; you don't need to run this command by hand.
+
+<details>
+<summary>No Docker? Run it with local Python instead</summary>
+
 ```bash
 pip install telethon
 ```
@@ -107,13 +132,29 @@ with TelegramClient(StringSession(), api_id, api_hash) as client:
     print("TG_STRING_SESSION=" + client.session.save())
 ```
 
-It will prompt for:
+The interactive prompts are identical to the ones above.
 
-1. Phone number with country code (e.g. `+15555555555`).
-2. Verification code Telegram sends you.
-3. 2FA password, if you have it enabled.
+</details>
 
-The long string it prints at the end is your `TG_STRING_SESSION`. Copy it into `.env`.
+### What to enter at each prompt
+
+The login walks you through these three prompts in order:
+
+1. **Phone number** — must be international E.164 format: a `+`, the country code, then the number, **with no spaces or hyphens, and drop the local leading `0`**. This is the phone of the **Telegram account you're logging in as** (a user account, not a bot).
+
+   | Country/region | Local number | Enter |
+   |---|---|---|
+   | China | 138 1234 5678 | `+8613812345678` |
+   | Hong Kong | 9123 4567 | `+85291234567` |
+   | US | (415) 555-0123 | `+14155550123` |
+
+2. **Login code** — Telegram sends a numeric code to your **other signed-in Telegram apps** (it falls back to SMS only if you have no other active device). Type it in as-is; it's different every login.
+
+3. **2FA password (prompted as `please enter your password`)** — asked **only** if you've enabled Two-Step Verification on the account.
+   - Enabled → enter the **fixed password you set yourself** (not your phone's unlock PIN, and not the login code from the previous step).
+   - Not enabled → **just press Enter to leave it blank**.
+
+   Forgot it? On your phone: **Settings → Privacy and Security → Two-Step Verification** to reset or turn it off; once off, logging in won't ask again.
 
 ## Configuration
 
