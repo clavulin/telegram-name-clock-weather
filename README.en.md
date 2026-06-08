@@ -136,7 +136,7 @@ cd telegram-name-clock-weather
 ./install.sh
 ```
 
-What the script does: checks Docker → asks for `API_ID`/`API_HASH` → spins up a throwaway container to generate `TG_STRING_SESSION` interactively (it prompts you for phone, login code, and 2FA password) → asks for display name, timezone, coordinates → defaults to free Open-Meteo (QWeather is opt-in) → writes `.env` → `docker compose up -d` → tails the last few log lines to confirm.
+What the script does: checks for Docker (offers to install it if missing — default yes) → asks for `API_ID`/`API_HASH` → spins up a throwaway container to generate `TG_STRING_SESSION` interactively (it prompts you for phone, login code, and 2FA password) → asks for display name, timezone, coordinates → defaults to free Open-Meteo (QWeather is opt-in) → writes `.env` → `docker compose up -d` → tails the last few log lines to confirm.
 
 ### What to enter at each prompt (same for both paths)
 

@@ -136,7 +136,7 @@ cd telegram-name-clock-weather
 ./install.sh
 ```
 
-脚本会：检查 Docker → 让你输入 API_ID/HASH → 在临时容器里交互登录生成 `TG_STRING_SESSION`（依次问你手机号、验证码、二次验证密码）→ 让你填昵称/时区/坐标 → 默认走免费的 Open-Meteo（也可选 QWeather）→ 写 `.env` → `docker compose up -d` → 贴最后几十行日志确认。
+脚本会：检查 Docker（没装会问你装，默认装）→ 让你输入 API_ID/HASH → 在临时容器里交互登录生成 `TG_STRING_SESSION`（依次问你手机号、验证码、二次验证密码）→ 让你填昵称/时区/坐标 → 默认走免费的 Open-Meteo（也可选 QWeather）→ 写 `.env` → `docker compose up -d` → 贴最后几十行日志确认。
 
 ### 交互提示怎么填（两种方式通用）
 
